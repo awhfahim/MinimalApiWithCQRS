@@ -1,3 +1,5 @@
+using Asp.Versioning;
+using Asp.Versioning.Builder;
 using BubtCommunity.Api.Extensions;
 using BubtCommunity.Api.Options;
 using BubtCommunity.Persistence;
@@ -32,9 +34,16 @@ try
         .ReadFrom.Configuration(configuration)
         .WriteTo.ConfigureEmailSink(builder.Configuration)
     );
+    //Add Api Versioning
+    builder.Services.AddApiVersioningExtension();
+
+    //Add MediatR
+    builder.Services.AddMediatR(cfg => 
+        cfg.RegisterServicesFromAssembly(BubtCommunity.Application.AssemblyReference.Assembly));
+    
+    builder.Services.AddEndPoints(typeof(Program).Assembly);
 
     // Add services to the container.
-    
     var connectionString= builder.Configuration
         .GetRequiredSection(ConnectionStringOptions.SectionName)
         .GetValue<string>(nameof(ConnectionStringOptions.BubtCommunityDb));
@@ -48,7 +57,6 @@ try
             .UseEnumCheckConstraints();
         
         ArgumentNullException.ThrowIfNull(connectionString, nameof(ConnectionStringOptions));
-        
     });
     
     
@@ -57,6 +65,20 @@ try
     builder.Services.AddSwaggerGen();
 
     var app = builder.Build();
+    
+    //Configure API Versioning
+    ApiVersionSet apiVersionSet = app.NewApiVersionSet()
+        .HasApiVersion(new ApiVersion(1)) //Add version 1
+        .HasApiVersion(new ApiVersion(2)) //Add version 2
+        .ReportApiVersions() // Report available versions
+        .Build();
+
+    //Create versioned group for API
+    RouteGroupBuilder versionedGroup = app
+        .MapGroup("api/v{version:apiVersion}") //add version to URL
+        .WithApiVersionSet(apiVersionSet); //Add version set to group
+
+    app.MapEndPoints(versionedGroup);
 
     // Configure the HTTP request pipeline.
     if (app.Environment.IsDevelopment())
