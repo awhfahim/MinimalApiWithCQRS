@@ -5,6 +5,7 @@ using BubtCommunity.Api.Options;
 using BubtCommunity.Persistence;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
+using Scrutor;
 using Serilog;
 using Serilog.Events;
 
@@ -22,8 +23,18 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = WebApplication.CreateBuilder(args);
-    
-    builder.Configuration.AddConfiguration(configuration);
+    // Add Scrutor
+    builder
+        .Services
+        .Scan(
+            selector => selector
+                .FromAssemblies(
+                    BubtCommunity.Infrastructure.AssemblyReference.Assembly,
+                    BubtCommunity.Persistence.AssemblyReference.Assembly)
+                .AddClasses(false)
+                .UsingRegistrationStrategy(RegistrationStrategy.Skip)
+                .AsImplementedInterfaces()
+                .WithScopedLifetime());
     
     builder.Services.BindOptions<SerilogEmailSinkOptions>(SerilogEmailSinkOptions.SectionName);
     builder.Services.BindOptions<ConnectionStringOptions>(ConnectionStringOptions.SectionName);
